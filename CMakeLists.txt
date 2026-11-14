@@ -114,6 +114,12 @@ if(MTASA_WITH_RAKNET AND NOT ANDROID)
   target_include_directories(mtasa_echo_server PRIVATE include src)
   target_compile_definitions(mtasa_echo_server PRIVATE MTASA_WITH_RAKNET=1)
   target_link_libraries(mtasa_echo_server PRIVATE mtasa::raknet Threads::Threads)
+
+  add_executable(mtasa_echo_client tools/echo_client/main.cpp src/net/NetTransport.cpp
+    src/net/RakNetTransport.cpp src/net/Session.cpp src/core/Log.cpp)
+  target_include_directories(mtasa_echo_client PRIVATE include src)
+  target_compile_definitions(mtasa_echo_client PRIVATE MTASA_WITH_RAKNET=1)
+  target_link_libraries(mtasa_echo_client PRIVATE mtasa::raknet Threads::Threads)
 endif()
 
 message(STATUS "mtasa: hook backend = ${MTASA_HOOK_BACKEND}, raknet = ${MTASA_WITH_RAKNET}, servidor de teste = '${MTASA_TEST_SERVER}'")

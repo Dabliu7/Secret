@@ -282,24 +282,28 @@ cmake --build --preset android-arm64
 O botão passa a se chamar "Conectar". Para voltar ao loopback, reconfigure com
 `-DMTASA_TEST_SERVER=`.
 
-**WSL2:** por padrão o WSL2 fica atrás de NAT e não recebe UDP vindo da rede
-local. No Windows 11 22H2 ou mais novo, ative a rede espelhada: crie
-`%UserProfile%\.wslconfig` com
+**WSL2:** o WSL2 fica atrás de NAT e não recebe UDP vindo da rede local. No
+Windows 11 22H2+ a rede espelhada (`networkingMode=mirrored` em `.wslconfig`)
+resolve; no Windows 10 ela não existe. Nesse caso use o sentido inverso, abaixo.
 
-```ini
-[wsl2]
-networkingMode=mirrored
+### PC conectando no aparelho (funciona com WSL2 em NAT)
+
+Conexões de saída do WSL2 funcionam, então basta inverter os papéis: o servidor
+de eco roda no aparelho e o cliente no PC.
+
+1. No aparelho, com o payload em modo loopback (padrão), abra o painel e toque
+   em "Testar rede". O servidor de eco fica escutando na porta 22003 em todas
+   as interfaces, inclusive o Wi-Fi.
+2. Veja o IP do aparelho em *Configurações → Sobre o telefone → Status*, ou
+   `adb shell ip -4 addr show wlan0`.
+3. No PC:
+
+```sh
+cmake --preset host && cmake --build --preset host --target mtasa_echo_client
+build/host/mtasa_echo_client IP_DO_APARELHO:22003
 ```
 
-rode `wsl --shutdown`, abra o WSL de novo e libere a entrada no firewall do
-Hyper-V (PowerShell como administrador):
-
-```powershell
-Set-NetFirewallHyperVVMSetting -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -DefaultInboundAction Allow
-```
-
-Use então o IP do Windows (`ipconfig`) em `MTASA_TEST_SERVER`. Este caminho com
-WSL2 ainda não foi testado neste projeto.
+A saída esperada é uma linha `eco N de IP:22003: X ms` por segundo.
 
 ## Ciclo de desenvolvimento
 
