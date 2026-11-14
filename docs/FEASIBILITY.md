@@ -102,8 +102,14 @@ e `data_streams` à Play Store, que responde -15 (instalação não reconhecida)
 o app nunca chega a carregar a `libGame.so`. Os pacotes ficam no armazenamento
 privado do app, inacessível sem root. Saídas: injeção com root sem reassinar
 (Zygisk), ou `tools/patch_downloader.py`, que pula o download e redireciona os
-pacotes ausentes para armazenamento externo (o jogo então roda sem áudio, se
-tolerar a ausência — a verificar).
+pacotes ausentes para armazenamento externo.
+
+**Primeiro teste em aparelho (Galaxy M53 5G, Android 16, sem root):** com o
+downloader patcheado a `libmtasa.so` carrega, os três símbolos resolvem, os
+hooks instalam e `CGame::Process` é interceptado no `GameThread`. Sem o pack
+`data_streams` o jogo cai logo depois em `CAEStreamThread::Service` →
+`ZIPFile::Find` (ponteiro nulo); o payload agora neutraliza esse serviço quando
+o pack está ausente.
 
 Em todos os casos sem root o APK final é reassinado; **distribui-se o patcher e a
 `libmtasa.so`, nunca o APK ou assets da Rockstar**.

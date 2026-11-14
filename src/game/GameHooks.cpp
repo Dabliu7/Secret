@@ -1,6 +1,7 @@
 #include "game/GameHooks.h"
 
 #include <atomic>
+#include <unistd.h>
 
 #include "game/Symbols.h"
 #include "gfx/OverlayRenderer.h"
@@ -42,6 +43,29 @@ void hook_AND_TouchEvent(int action, int pointer, int x, int y) {
     orig_AND_TouchEvent(action, pointer, x, y);
 }
 
+// --- Modo sem streaming de áudio -------------------------------------------
+// Em APKs reassinados a Play não entrega o pack `data_streams` (rádio, música,
+// áudio de missão). Sem ele, CAEStreamThread::Service chama ZIPFile::Find em
+// um ponteiro nulo e o jogo cai no primeiro frame. Com o pack ausente,
+// trocamos o serviço de streaming por um no-op: o jogo roda sem rádio/música.
+constexpr char kStreamsPackDir[] =
+    "/storage/emulated/0/Android/data/com.rockstargames.gtasa/files/mtasa_packs/data_streams";
+
+void (*orig_CAEStreamThread_Service)(void*) = nullptr;
+void hook_CAEStreamThread_Service(void* /*self*/) {}
+
+void InstallAudioWorkarounds(const hook::ModuleInfo& gtasa) {
+    if (access(kStreamsPackDir, F_OK) == 0) {
+        LOGI("pack data_streams presente: streaming de áudio mantido");
+        return;
+    }
+    void* service = Resolve(gtasa, "_ZN15CAEStreamThread7ServiceEv");
+    const bool ok = service && hook::Install(service, hook_CAEStreamThread_Service,
+                                             &orig_CAEStreamThread_Service);
+    LOGW("pack data_streams ausente: streaming de áudio %s",
+         ok ? "desativado (sem rádio/música)" : "NÃO pôde ser desativado; o jogo deve cair");
+}
+
 }  // namespace
 
 bool InstallHooks(const hook::ModuleInfo& gtasa) {
@@ -57,6 +81,7 @@ bool InstallHooks(const hook::ModuleInfo& gtasa) {
     ok &= hook::Install(g_syms.Render2dStuff, hook_Render2dStuff, &orig_Render2dStuff);
     ok &= hook::Install(g_syms.AND_TouchEvent, hook_AND_TouchEvent, &orig_AND_TouchEvent);
     LOGI("hooks instalados: %s (backend %s)", ok ? "ok" : "FALHA", hook::BackendName());
+    InstallAudioWorkarounds(gtasa);
     return ok;
 }
 
