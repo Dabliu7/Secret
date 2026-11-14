@@ -100,8 +100,10 @@ restrito). As formas de entrar no processo, em ordem de preferência:
 Asset Delivery. O `DownloaderActivity` pede os pacotes `data_sfx1`, `data_sfx2`
 e `data_streams` à Play Store, que responde -15 (instalação não reconhecida), e
 o app nunca chega a carregar a `libGame.so`. Os pacotes ficam no armazenamento
-privado do app, inacessível sem root. Saídas possíveis: injeção com root sem
-reassinar (Zygisk), ou patch no downloader para pular/redirecionar os pacotes.
+privado do app, inacessível sem root. Saídas: injeção com root sem reassinar
+(Zygisk), ou `tools/patch_downloader.py`, que pula o download e redireciona os
+pacotes ausentes para armazenamento externo (o jogo então roda sem áudio, se
+tolerar a ausência — a verificar).
 
 Em todos os casos sem root o APK final é reassinado; **distribui-se o patcher e a
 `libmtasa.so`, nunca o APK ou assets da Rockstar**.
@@ -123,8 +125,9 @@ Em todos os casos sem root o APK final é reassinado; **distribui-se o patcher e
   `GameNative_implOnTouchStart/Move/End`, que repassam para `AND_TouchEvent`
   com ação 2 (toque/movimento) ou 1 (soltar), id do ponteiro e x/y em pixels.
 - O Java carrega o motor com `System.loadLibrary("Game")` em `GameNative`.
-- O frame é dirigido pelo Java (`GameNative_implOnDrawFrame`), o que sugere que
-  o jogo roda no thread do `GLSurfaceView` **[verificar]**.
+- O Java tem um `GameThread` próprio que entrega a `Surface` ao nativo
+  (`implOnSurfaceChanged`) e chama `implOnDrawFrame`; em que thread o render
+  nativo de fato executa ainda precisa ser verificado **[verificar]**.
 
 O payload se recusa a hookar uma build em que falte algum símbolo obrigatório
 (`ResolveAll`). Offsets, quando necessários, valem só para um *build-id*.

@@ -162,13 +162,14 @@ Anote o conteúdo de `work/symbols/build_id.txt`: offsets só valem para essa bu
 
 ## Parte 4 — Injetar no APK e instalar
 
-> **Bloqueio conhecido na build 2.11.311 (Play Store).** O jogo baixa os pacotes
-> de áudio (`data_sfx1`, `data_sfx2`, `data_streams`) pela Play Store ao abrir.
-> Com o APK reassinado a Play recusa o download (erro -15, instalação não
-> reconhecida) e o jogo para na tela do downloader, antes de carregar a
-> `libGame.so`. Desinstalar o original também apaga os pacotes já baixados.
-> Até haver um contorno (ver `FEASIBILITY.md`, seção 2.1), **este passo deixa o
-> jogo inutilizável**; para voltar, desinstale e reinstale pela Play Store.
+> **Build 2.11.311 (Play Store): o jogo roda sem os pacotes de áudio.** Essa
+> build baixa `data_sfx1`, `data_sfx2` e `data_streams` pela Play Store, que
+> recusa a entrega a um APK reassinado (erro -15). O `patch_apk.sh` aplica
+> `tools/patch_downloader.py`, que pula o download e aponta os pacotes ausentes
+> para `Android/data/com.rockstargames.gtasa/files/mtasa_packs/<nome>`. Sem os
+> arquivos lá, espere jogo sem som — ou falha ao iniciar; isso ainda não foi
+> testado. Desinstalar o original apaga os pacotes já baixados; para voltar ao
+> jogo normal, desinstale e reinstale pela Play Store.
 
 ```sh
 tools/patch_apk.sh work/apks build/android-arm64/libmtasa.so

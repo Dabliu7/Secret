@@ -3,7 +3,7 @@
 # Os APKs resultantes não devem ser redistribuídos: contêm o jogo da Rockstar.
 #
 # Aceita um APK único ou uma pasta com split APKs (base.apk + split_*.apk).
-# Requisitos: apktool, zip, zipalign, apksigner (Android build-tools), keytool.
+# Requisitos: apktool (2.9+), python3, zip, zipalign, apksigner, keytool.
 #
 # Uso: tools/patch_apk.sh <gtasa.apk | pasta_com_apks> <libmtasa.so> [pasta_saida]
 set -euo pipefail
@@ -62,6 +62,9 @@ awk '
 ' "$SMALI" > "$SMALI.new" || { echo "ERRO: falha ao patchear $SMALI" >&2; exit 1; }
 mv "$SMALI.new" "$SMALI"
 echo "smali patcheado: $SMALI"
+
+# Builds com Play Asset Delivery: sem isto o jogo para no downloader (erro -15).
+python3 "$(dirname "$0")/patch_downloader.py" "$WORK/base"
 
 # APK único: a lib vai dentro do próprio base antes do rebuild.
 if [ "$LIB_APK" = "$BASE" ]; then
