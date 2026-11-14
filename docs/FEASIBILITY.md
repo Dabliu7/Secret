@@ -111,9 +111,11 @@ Em todos os casos o APK final é reassinado; **distribui-se o patcher e a
   `CVehicle` e RenderWare. Isso permite resolver por nome
   (`_Z13Render2dStuffv`) em vez de manter tabelas de endereços, e hookar em
   fronteira de função em vez de no meio dela — grande vantagem sobre o PC.
-- **Não existe `AND_TouchEvent`.** O toque entra por
-  `GameNative_implOnTouchStart/Move/End` (repasses de 24 bytes); o alvo interno
-  do hook ainda precisa ser identificado.
+- Os três alvos iniciais existem com os nomes esperados: `CGame::Process`,
+  `Render2dStuff` e `AND_TouchEvent(int,int,int,int)`. O toque chega do Java por
+  `GameNative_implOnTouchStart/Move/End`, que repassam para `AND_TouchEvent`
+  com ação 2 (toque/movimento) ou 1 (soltar), id do ponteiro e x/y em pixels.
+- O Java carrega o motor com `System.loadLibrary("Game")` em `GameNative`.
 - O frame é dirigido pelo Java (`GameNative_implOnDrawFrame`), o que sugere que
   o jogo roda no thread do `GLSurfaceView` **[verificar]**.
 

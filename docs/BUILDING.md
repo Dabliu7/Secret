@@ -123,7 +123,7 @@ unzip -o work/apks/split_config.arm64_v8a.apk 'lib/arm64-v8a/*' -d work/
 # unzip -o work/apks/base.apk 'lib/arm64-v8a/*' -d work/
 
 ls work/lib/arm64-v8a/                         # anote os nomes das bibliotecas
-tools/dump_symbols.sh work/lib/arm64-v8a/libGTASA.so
+tools/dump_symbols.sh work/lib/arm64-v8a/libGame.so     # libGTASA.so em builds antigas
 ```
 
 Se não existir `split_config.arm64_v8a.apk` nem `lib/arm64-v8a` no base, a instalação é só armv7 e **não serve** — é preciso

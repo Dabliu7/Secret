@@ -22,7 +22,8 @@ struct Wanted {
     const char* name;
     void* Symbols::*field;
 };
-// ATENÇÃO: nomes candidatos, a confirmar contra a .dynsym da build alvo (Fase 0).
+// Confirmados na .dynsym da libGame.so 2.11.311 (arm64). Para outra build,
+// conferir com tools/dump_symbols.sh.
 const Wanted kWanted[] = {
     {"_ZN5CGame7ProcessEv", &Symbols::CGame_Process},
     {"_Z13Render2dStuffv", &Symbols::Render2dStuff},

@@ -33,7 +33,8 @@ void hook_Render2dStuff() {
 }
 
 // --- AND_TouchEvent --------------------------------------------------------
-// Assinatura a confirmar na Fase 0: (ação, id do ponteiro, x, y) em pixels.
+// Confirmado na build 2.11.311 pelo desmonte de GameNative_implOnTouch*:
+// (ação, id do ponteiro, x, y) em pixels; ação 2 = toque/movimento, 1 = soltar.
 void (*orig_AND_TouchEvent)(int, int, int, int) = nullptr;
 void hook_AND_TouchEvent(int action, int pointer, int x, int y) {
     // Se a UI do MTA consumir o toque, o jogo não o recebe.
