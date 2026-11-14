@@ -44,12 +44,34 @@ public:
     bool OnTouch(int action, int pointer, int x, int y);
 
 private:
-    void DrawStatusBanner();
+    struct Box {
+        float x, y, w, h;
+        bool Contains(float px, float py) const {
+            return px >= x && px < x + w && py >= y && py < y + h;
+        }
+    };
+    struct Layout {
+        Box banner, menu_button, panel, close_button;
+    };
+    enum class Target : uint8_t { None, MenuButton, Panel, CloseButton };
+
+    bool ComputeLayout(Layout* out) const;
+    Target HitTest(const Layout& layout, float x, float y) const;
+    void DrawStatusBanner(const Layout& layout);
+    void DrawPanel(const Layout& layout);
+
+    // O jogo aceita até 4 ponteiros de toque (ids 0..3).
+    static constexpr int kMaxPointers = 4;
 
     const game::GameDraw* game_draw_ = nullptr;
     IRenderBackend* backend_ = nullptr;
     uint64_t frame_ = 0;
-    bool capture_input_ = false;
+
+    // Toque e desenho rodam no GameThread; nada aqui precisa de trava.
+    bool panel_open_ = false;
+    bool pointer_down_[kMaxPointers] = {};
+    Target pointer_target_[kMaxPointers] = {};
+    int touch_log_budget_ = 6;
 };
 
 }  // namespace mtasa::gfx
