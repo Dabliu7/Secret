@@ -1,0 +1,87 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NDK_VERSION: r27c
+
+jobs:
+  android-arm64:
+    name: libmtasa.so (arm64-v8a, hook=${{ matrix.hook }}, raknet=${{ matrix.raknet }})
+    runs-on: ubuntu-latest
+    # Combinações ainda não validadas em dispositivo não bloqueiam o merge.
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { hook: and64, raknet: "OFF", experimental: false }
+          - { hook: and64, raknet: "ON",  experimental: true }
+          - { hook: dobby, raknet: "OFF", experimental: true }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Android NDK
+        id: ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: ${{ env.NDK_VERSION }}
+          add-to-path: false
+
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Cache das dependências (FetchContent)
+        uses: actions/cache@v4
+        with:
+          path: build/android-arm64/_deps
+          key: deps-${{ matrix.hook }}-${{ matrix.raknet }}-${{ hashFiles('cmake/Dependencies.cmake') }}
+
+      - name: Configure
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: >
+          cmake --preset android-arm64
+          -DMTASA_HOOK_BACKEND=${{ matrix.hook }}
+          -DMTASA_WITH_RAKNET=${{ matrix.raknet }}
+
+      - name: Build
+        run: cmake --build --preset android-arm64 --parallel
+
+      - name: Verifica o ELF gerado
+        env:
+          NDK: ${{ steps.ndk.outputs.ndk-path }}
+        run: |
+          SO=build/android-arm64/libmtasa.so
+          READELF="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+          "$READELF" -h "$SO" | tee /dev/stderr | grep -q 'AArch64'
+          "$READELF" --dyn-syms "$SO" | grep -q 'JNI_OnLoad'
+          # Nenhuma dependência além das libs de sistema do Android.
+          "$READELF" -d "$SO" | grep NEEDED
+          ls -l "$SO"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: libmtasa-arm64-v8a-${{ matrix.hook }}-raknet${{ matrix.raknet }}
+          path: build/android-arm64/libmtasa.so
+          if-no-files-found: error
+
+  host-tests:
+    name: testes de host
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - run: cmake --preset host
+      - run: cmake --build --preset host --parallel
+      - run: ctest --preset host

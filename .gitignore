@@ -1,0 +1,11 @@
+build/
+out/
+.cxx/
+*.so
+*.o
+*.apk
+*.idsig
+/work/
+.idea/
+.vscode/
+CMakeUserPresets.json
