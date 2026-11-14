@@ -26,7 +26,20 @@ public:
     // Não bloqueante; chamado 1x por frame a partir de CGame::Process.
     virtual bool Poll(Event* out) = 0;
     virtual int PingMs() const = 0;
+    // Primeiro byte livre para pacotes da aplicação (os anteriores são do transporte).
+    virtual uint8_t FirstUserPacketId() const = 0;
 };
+
+// Servidor de eco: devolve ao remetente todo pacote de aplicação recebido.
+// Usado no autoteste em loopback dentro do jogo e na ferramenta de host.
+class IEchoServer {
+public:
+    virtual ~IEchoServer() = default;
+    virtual bool Start(uint16_t port) = 0;
+    virtual void Pulse() = 0;  // não bloqueante
+    virtual void Stop() = 0;
+};
+std::unique_ptr<IEchoServer> CreateEchoServer();
 
 // Transporte disponível nesta build (RakNet se MTASA_WITH_RAKNET, senão nulo).
 std::unique_ptr<INetTransport> CreateTransport();

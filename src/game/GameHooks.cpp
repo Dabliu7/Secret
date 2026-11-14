@@ -9,12 +9,14 @@
 #include "game/Symbols.h"
 #include "gfx/OverlayRenderer.h"
 #include "mtasa/Log.h"
+#include "net/Session.h"
 
 namespace mtasa::game {
 namespace {
 
 Symbols g_syms;
 GameDraw g_draw;
+net::Session g_session;
 std::atomic<bool> g_installed{false};
 
 // --- CGame::Process --------------------------------------------------------
@@ -24,7 +26,7 @@ void (*orig_CGame_Process)() = nullptr;
 void hook_CGame_Process() {
     static uint64_t frame = 0;
     if (frame++ == 0) LOGI("primeiro CGame::Process interceptado");
-    // TODO(fase 3+): core::Pulse();
+    g_session.Pulse();
     orig_CGame_Process();
 }
 
@@ -165,6 +167,7 @@ bool InstallHooks(const hook::ModuleInfo& gtasa) {
     LOGI("hooks instalados: %s (backend %s)", ok ? "ok" : "FALHA", hook::BackendName());
     InstallAudioWorkarounds(gtasa);
     if (ok && g_draw.Init(gtasa)) gfx::OverlayRenderer::Get().SetGameDraw(&g_draw);
+    gfx::OverlayRenderer::Get().SetSession(&g_session);
     return ok;
 }
 

@@ -7,7 +7,7 @@ project(mtasa_android VERSION 0.1.0 LANGUAGES C CXX)
 # Backend de inline hook: and64 (padrão, só arm64) ou none (stub p/ host).
 set(MTASA_HOOK_BACKEND "auto" CACHE STRING "Backend de hook: auto|and64|none")
 set_property(CACHE MTASA_HOOK_BACKEND PROPERTY STRINGS auto and64 none)
-option(MTASA_WITH_RAKNET "Compila o transporte RakNet (experimental)" OFF)
+option(MTASA_WITH_RAKNET "Compila o transporte de rede RakNet" ON)
 option(MTASA_BUILD_TESTS "Compila os testes de host" OFF)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -49,6 +49,7 @@ add_library(mtasa SHARED
   src/gfx/OverlayRenderer.cpp
   src/lua/LuaAllocator.cpp
   src/net/NetTransport.cpp
+  src/net/Session.cpp
 )
 
 target_include_directories(mtasa PRIVATE include src)
@@ -89,10 +90,26 @@ if(MTASA_BUILD_TESTS AND NOT ANDROID)
   set_target_properties(got_victim PROPERTIES C_VISIBILITY_PRESET default)
   target_compile_options(got_victim PRIVATE -O0 -fsemantic-interposition)
   add_executable(mtasa_host_tests tests/host_tests.cpp src/lua/LuaAllocator.cpp src/net/NetTransport.cpp
-    src/core/Log.cpp src/hook/GotHook.cpp src/hook/ModuleInfo.cpp)
+    src/net/Session.cpp src/core/Log.cpp src/hook/GotHook.cpp src/hook/ModuleInfo.cpp)
   target_include_directories(mtasa_host_tests PRIVATE include src)
-  target_link_libraries(mtasa_host_tests PRIVATE got_victim ${CMAKE_DL_LIBS})
+  target_link_libraries(mtasa_host_tests PRIVATE got_victim Threads::Threads ${CMAKE_DL_LIBS})
+  if(MTASA_WITH_RAKNET)
+    target_sources(mtasa_host_tests PRIVATE src/net/RakNetTransport.cpp)
+    target_compile_definitions(mtasa_host_tests PRIVATE MTASA_WITH_RAKNET=1)
+    target_link_libraries(mtasa_host_tests PRIVATE mtasa::raknet)
+  endif()
   add_test(NAME host_tests COMMAND mtasa_host_tests)
+endif()
+
+# ---------------------------------------------------------------------------
+# Ferramentas de host
+# ---------------------------------------------------------------------------
+if(MTASA_WITH_RAKNET AND NOT ANDROID)
+  add_executable(mtasa_echo_server tools/echo_server/main.cpp src/net/NetTransport.cpp
+    src/net/RakNetTransport.cpp)
+  target_include_directories(mtasa_echo_server PRIVATE include src)
+  target_compile_definitions(mtasa_echo_server PRIVATE MTASA_WITH_RAKNET=1)
+  target_link_libraries(mtasa_echo_server PRIVATE mtasa::raknet Threads::Threads)
 endif()
 
 message(STATUS "mtasa: hook backend = ${MTASA_HOOK_BACKEND}, raknet = ${MTASA_WITH_RAKNET}")

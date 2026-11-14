@@ -4,6 +4,7 @@
 
 #include "game/GameDraw.h"
 #include "mtasa/Log.h"
+#include "net/Session.h"
 
 namespace mtasa::gfx {
 
@@ -22,14 +23,17 @@ bool OverlayRenderer::ComputeLayout(Layout* out) const {
     // Botão ao lado da faixa, alto o bastante para um dedo.
     out->menu_button = {out->banner.x + out->banner.w + w * 0.01f, h * 0.015f, w * 0.09f, h * 0.10f};
     out->panel = {w * 0.25f, h * 0.22f, w * 0.50f, h * 0.56f};
-    out->close_button = {out->panel.x + out->panel.w * 0.30f, out->panel.y + out->panel.h * 0.74f,
-                         out->panel.w * 0.40f, out->panel.h * 0.18f};
+    const float button_y = out->panel.y + out->panel.h * 0.74f;
+    const float button_h = out->panel.h * 0.18f;
+    out->connect_button = {out->panel.x + out->panel.w * 0.06f, button_y, out->panel.w * 0.52f, button_h};
+    out->close_button = {out->panel.x + out->panel.w * 0.62f, button_y, out->panel.w * 0.32f, button_h};
     return true;
 }
 
 OverlayRenderer::Target OverlayRenderer::HitTest(const Layout& layout, float x, float y) const {
     if (panel_open_) {
         if (layout.close_button.Contains(x, y)) return Target::CloseButton;
+        if (layout.connect_button.Contains(x, y)) return Target::ConnectButton;
         // Com o painel aberto, todo toque é da UI: o jogo não deve reagir por baixo.
         return Target::Panel;
     }
@@ -79,11 +83,27 @@ void OverlayRenderer::DrawPanel(const Layout& layout) {
     game_draw_->Text(left, p.y + p.h * 0.07f, 0.9f, 0xF5A623FF, "Multi Theft Auto");
     game_draw_->Text(left, p.y + p.h * 0.26f, 0.6f, 0xFFFFFFFF, "Overlay: ok");
     game_draw_->Text(left, p.y + p.h * 0.38f, 0.6f, 0xFFFFFFFF, "Toque: ok");
-    game_draw_->Text(left, p.y + p.h * 0.50f, 0.6f, 0xB0B0B0FF, "Rede: nao implementada");
+
+    char line[128] = "Rede: indisponivel";
+    bool connected = false;
+    bool active = false;
+    if (session_) {
+        char status[96];
+        session_->DescribeStatus(status, sizeof(status));
+        std::snprintf(line, sizeof(line), "Rede: %s", status);
+        connected = session_->state() == net::Session::State::Connected;
+        active = session_->active();
+    }
+    game_draw_->Text(left, p.y + p.h * 0.50f, 0.6f, connected ? 0x7CFC7CFF : 0xB0B0B0FF, line);
+
+    const Box& n = layout.connect_button;
+    game_draw_->Rect(n.x, n.y, n.w, n.h, active ? 0x8A2A2AFF : 0x2A6A2AFF);
+    game_draw_->Text(n.x + n.w * 0.10f, n.y + n.h * 0.22f, 0.7f, 0xFFFFFFFF,
+                     active ? "Desconectar" : "Testar rede");
 
     const Box& c = layout.close_button;
     game_draw_->Rect(c.x, c.y, c.w, c.h, 0xF5A623FF);
-    game_draw_->Text(c.x + c.w * 0.28f, c.y + c.h * 0.22f, 0.7f, 0x000000FF, "Fechar");
+    game_draw_->Text(c.x + c.w * 0.18f, c.y + c.h * 0.22f, 0.7f, 0x000000FF, "Fechar");
 }
 
 // Ação 2 = dedo na tela (início OU movimento), 1 e 4 = dedo saiu. Um gesto que
@@ -123,6 +143,13 @@ bool OverlayRenderer::OnTouch(int action, int pointer, int x, int y) {
         } else if (pressed == Target::CloseButton) {
             panel_open_ = false;
             LOGI("painel MTA fechado");
+        } else if (pressed == Target::ConnectButton && session_) {
+            // Fase 3: autoteste em loopback (cliente e servidor de eco no aparelho).
+            if (session_->active()) {
+                session_->Disconnect();
+            } else {
+                session_->ConnectLoopback();
+            }
         }
     }
     return true;

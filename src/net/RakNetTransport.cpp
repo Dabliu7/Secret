@@ -81,6 +81,8 @@ public:
         return server_ == RakNet::UNASSIGNED_SYSTEM_ADDRESS ? -1 : peer_->GetAveragePing(server_);
     }
 
+    uint8_t FirstUserPacketId() const override { return ID_USER_PACKET_ENUM; }
+
 private:
     void ReleasePacket() {
         if (packet_) peer_->DeallocatePacket(packet_);
@@ -93,7 +95,47 @@ private:
     bool started_ = false;
 };
 
+class RakNetEchoServer final : public IEchoServer {
+public:
+    ~RakNetEchoServer() override { Stop(); }
+
+    bool Start(uint16_t port) override {
+        if (peer_) return true;
+        peer_ = RakNet::RakPeerInterface::GetInstance();
+        RakNet::SocketDescriptor sd(port, nullptr);
+        if (peer_->Startup(32, &sd, 1) != RakNet::RAKNET_STARTED) {
+            Stop();
+            return false;
+        }
+        peer_->SetMaximumIncomingConnections(32);
+        return true;
+    }
+
+    void Pulse() override {
+        if (!peer_) return;
+        while (RakNet::Packet* packet = peer_->Receive()) {
+            if (packet->length > 0 && packet->data[0] >= ID_USER_PACKET_ENUM) {
+                peer_->Send(reinterpret_cast<const char*>(packet->data), static_cast<int>(packet->length),
+                            HIGH_PRIORITY, RELIABLE_ORDERED, 0, packet->systemAddress, false);
+            }
+            peer_->DeallocatePacket(packet);
+        }
+    }
+
+    void Stop() override {
+        if (!peer_) return;
+        peer_->Shutdown(100);
+        RakNet::RakPeerInterface::DestroyInstance(peer_);
+        peer_ = nullptr;
+    }
+
+private:
+    RakNet::RakPeerInterface* peer_ = nullptr;
+};
+
 }  // namespace
+
+std::unique_ptr<IEchoServer> CreateRakNetEchoServer() { return std::make_unique<RakNetEchoServer>(); }
 
 std::unique_ptr<INetTransport> CreateRakNetTransport() { return std::make_unique<RakNetTransport>(); }
 

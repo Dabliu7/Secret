@@ -22,7 +22,7 @@ cmake --preset android-arm64
 cmake --build --preset android-arm64      # -> build/android-arm64/libmtasa.so
 ```
 
-Opções: `-DMTASA_HOOK_BACKEND=and64|none`, `-DMTASA_WITH_RAKNET=ON`.
+Opções: `-DMTASA_HOOK_BACKEND=and64|none`, `-DMTASA_WITH_RAKNET=OFF` (compila sem rede).
 
 Testes de host (sem NDK, sem hooks):
 

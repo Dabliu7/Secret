@@ -5,6 +5,10 @@
 #include "lua/LuaAllocator.h"
 #include "mtasa/Hook.h"
 #include "net/NetTransport.h"
+#include "net/Session.h"
+
+#include <chrono>
+#include <thread>
 
 #define CHECK(cond)                                                      \
     do {                                                                 \
@@ -49,8 +53,41 @@ static void TestGotHook() {
     CHECK(got_victim_caller(1) == 1020);
 }
 
+#ifdef MTASA_WITH_RAKNET
+// Cliente e servidor de eco no mesmo processo, pela pilha UDP real em loopback.
+static void TestSessionLoopback() {
+    using mtasa::net::Session;
+    Session session;
+    CHECK(session.state() == Session::State::Idle);
+    CHECK(session.ConnectLoopback(47113));
+    for (int i = 0; i < 600 && session.echoes_received() < 2; ++i) {
+        session.Pulse();
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    CHECK(session.state() == Session::State::Connected);
+    CHECK(session.echoes_received() >= 2);
+    CHECK(session.ping_ms() >= 0 && session.ping_ms() < 1000);
+    char status[96];
+    session.DescribeStatus(status, sizeof(status));
+    std::printf("sessão: %s\n", status);
+    session.Disconnect();
+    CHECK(session.state() == Session::State::Idle);
+
+    // Porta sem servidor: precisa terminar em Failed, não ficar pendurado.
+    CHECK(session.Connect("127.0.0.1", 47114));
+    for (int i = 0; i < 1500 && session.state() == Session::State::Connecting; ++i) {
+        session.Pulse();
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    CHECK(session.state() == Session::State::Failed);
+}
+#endif
+
 int main() {
     TestGotHook();
+#ifdef MTASA_WITH_RAKNET
+    TestSessionLoopback();
+#endif
     TestCappedAllocator();
     CHECK(mtasa::net::TransportName() != nullptr);
     std::puts("ok");

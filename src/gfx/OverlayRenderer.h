@@ -4,6 +4,9 @@
 namespace mtasa::game {
 class GameDraw;
 }
+namespace mtasa::net {
+class Session;
+}
 
 namespace mtasa::gfx {
 
@@ -35,6 +38,8 @@ public:
 
     // Liga o desenho pelas rotinas do jogo (retângulos e texto).
     void SetGameDraw(const game::GameDraw* draw) { game_draw_ = draw; }
+    // Sessão de rede mostrada e controlada pelo painel.
+    void SetSession(net::Session* session) { session_ = session; }
 
     void SetBackend(IRenderBackend* backend) { backend_ = backend; }
 
@@ -51,9 +56,9 @@ private:
         }
     };
     struct Layout {
-        Box banner, menu_button, panel, close_button;
+        Box banner, menu_button, panel, connect_button, close_button;
     };
-    enum class Target : uint8_t { None, MenuButton, Panel, CloseButton };
+    enum class Target : uint8_t { None, MenuButton, Panel, ConnectButton, CloseButton };
 
     bool ComputeLayout(Layout* out) const;
     Target HitTest(const Layout& layout, float x, float y) const;
@@ -64,6 +69,7 @@ private:
     static constexpr int kMaxPointers = 4;
 
     const game::GameDraw* game_draw_ = nullptr;
+    net::Session* session_ = nullptr;
     IRenderBackend* backend_ = nullptr;
     uint64_t frame_ = 0;
 
