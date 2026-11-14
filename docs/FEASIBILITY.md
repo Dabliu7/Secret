@@ -96,7 +96,14 @@ restrito). As formas de entrar no processo, em ordem de preferência:
    é distribuído — porém exige reimplementar a activity/JNI glue do jogo. Meta de
    médio prazo, não de protótipo.
 
-Em todos os casos o APK final é reassinado; **distribui-se o patcher e a
+**Limite encontrado em teste (build 2.11.311):** reassinar o APK quebra o Play
+Asset Delivery. O `DownloaderActivity` pede os pacotes `data_sfx1`, `data_sfx2`
+e `data_streams` à Play Store, que responde -15 (instalação não reconhecida), e
+o app nunca chega a carregar a `libGame.so`. Os pacotes ficam no armazenamento
+privado do app, inacessível sem root. Saídas possíveis: injeção com root sem
+reassinar (Zygisk), ou patch no downloader para pular/redirecionar os pacotes.
+
+Em todos os casos sem root o APK final é reassinado; **distribui-se o patcher e a
 `libmtasa.so`, nunca o APK ou assets da Rockstar**.
 
 ### 2.2 Qual build do jogo
