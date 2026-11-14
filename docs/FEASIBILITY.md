@@ -101,15 +101,24 @@ Em todos os casos o APK final é reassinado; **distribui-se o patcher e a
 
 ### 2.2 Qual build do jogo
 
-`arm64-v8a` só existe nas builds mais recentes do GTA:SA mobile (família 2.10+;
-as 1.08/2.00 clássicas são armv7) **[verificar na Fase 0]**. A build alvo deve
-ser fixada pelo *build-id* do ELF e o payload deve se recusar a hookar uma build
-desconhecida — é o que `ResolveAll` faz hoje ao exigir todos os símbolos.
+**Build alvo: 2.11.311 (Play Store, split APKs, arm64-v8a).** Verificado na
+`.dynsym` dessa build:
 
-Grande vantagem em relação ao PC: a `libGTASA.so` exporta boa parte dos nomes
-C++ na `.dynsym` **[verificar]**. Isso permite resolver por nome
-(`_ZN5CGame7ProcessEv`) em vez de manter tabelas de endereços, e hookar em
-fronteira de função em vez de no meio dela.
+- O motor se chama **`libGame.so`**, não `libGTASA.so` (nome das builds antigas).
+  O app tem uma casca em Flutter (`libflutter.so`, `libapp.so`) e o JNI passou
+  para `com.rockstargames.oswrapper.GameNative`.
+- Os nomes C++ **estão exportados**: mais de 3 mil símbolos de `CGame`, `CPed`,
+  `CVehicle` e RenderWare. Isso permite resolver por nome
+  (`_Z13Render2dStuffv`) em vez de manter tabelas de endereços, e hookar em
+  fronteira de função em vez de no meio dela — grande vantagem sobre o PC.
+- **Não existe `AND_TouchEvent`.** O toque entra por
+  `GameNative_implOnTouchStart/Move/End` (repasses de 24 bytes); o alvo interno
+  do hook ainda precisa ser identificado.
+- O frame é dirigido pelo Java (`GameNative_implOnDrawFrame`), o que sugere que
+  o jogo roda no thread do `GLSurfaceView` **[verificar]**.
+
+O payload se recusa a hookar uma build em que falte algum símbolo obrigatório
+(`ResolveAll`). Offsets, quando necessários, valem só para um *build-id*.
 
 ### 2.3 Frameworks de hook
 
