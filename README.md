@@ -12,6 +12,8 @@ viabilidade, arquitetura e roadmap. Ponto mais importante: o módulo de rede do
 MTA é fechado, então compatibilidade com servidores oficiais não é alcançável só
 com este repositório.
 
+Passo a passo completo: [`docs/BUILDING.md`](docs/BUILDING.md).
+
 ## Build
 
 ```sh
