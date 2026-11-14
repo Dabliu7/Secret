@@ -22,18 +22,6 @@ if(MTASA_HOOK_BACKEND STREQUAL "and64")
   target_link_libraries(mtasa_hook_backend INTERFACE and64inlinehook)
   target_compile_definitions(mtasa_hook_backend INTERFACE MTASA_HOOK_AND64=1)
 
-elseif(MTASA_HOOK_BACKEND STREQUAL "dobby")
-  set(DOBBY_BUILD_EXAMPLE OFF CACHE BOOL "" FORCE)
-  set(DOBBY_BUILD_TEST    OFF CACHE BOOL "" FORCE)
-  set(DOBBY_DEBUG         OFF CACHE BOOL "" FORCE)
-  FetchContent_Declare(dobby
-    GIT_REPOSITORY https://github.com/jmpews/Dobby.git
-    GIT_TAG        5dfc8546954ce3b3198132ab13fddb89ee92cdd7)
-  FetchContent_MakeAvailable(dobby)
-  target_link_libraries(mtasa_hook_backend INTERFACE dobby_static)
-  target_include_directories(mtasa_hook_backend INTERFACE ${dobby_SOURCE_DIR}/include)
-  target_compile_definitions(mtasa_hook_backend INTERFACE MTASA_HOOK_DOBBY=1)
-
 elseif(MTASA_HOOK_BACKEND STREQUAL "none")
   target_compile_definitions(mtasa_hook_backend INTERFACE MTASA_HOOK_NONE=1)
 else()
@@ -58,4 +46,10 @@ if(MTASA_WITH_RAKNET)
   target_include_directories(raknet SYSTEM PUBLIC ${raknet_SOURCE_DIR}/Source)
   target_compile_options(raknet PRIVATE -w)
   set_target_properties(raknet PROPERTIES CXX_STANDARD 11 CXX_VISIBILITY_PRESET hidden)
+  if(ANDROID)
+    # FileList.cpp inclui <asm/io.h> em Android, que não existe no NDK atual
+    # (e nada dele é usado). Um cabeçalho vazio resolve sem patchear o upstream.
+    file(WRITE ${CMAKE_BINARY_DIR}/raknet_shim/asm/io.h "/* shim vazio */\n")
+    target_include_directories(raknet BEFORE PRIVATE ${CMAKE_BINARY_DIR}/raknet_shim)
+  endif()
 endif()

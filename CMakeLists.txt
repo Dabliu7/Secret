@@ -4,9 +4,9 @@ project(mtasa_android VERSION 0.1.0 LANGUAGES C CXX)
 # ---------------------------------------------------------------------------
 # Opções
 # ---------------------------------------------------------------------------
-# Backend de inline hook: and64 (padrão, só arm64), dobby, none (stub p/ host).
-set(MTASA_HOOK_BACKEND "auto" CACHE STRING "Backend de hook: auto|and64|dobby|none")
-set_property(CACHE MTASA_HOOK_BACKEND PROPERTY STRINGS auto and64 dobby none)
+# Backend de inline hook: and64 (padrão, só arm64) ou none (stub p/ host).
+set(MTASA_HOOK_BACKEND "auto" CACHE STRING "Backend de hook: auto|and64|none")
+set_property(CACHE MTASA_HOOK_BACKEND PROPERTY STRINGS auto and64 none)
 option(MTASA_WITH_RAKNET "Compila o transporte RakNet (experimental)" OFF)
 option(MTASA_BUILD_TESTS "Compila os testes de host" OFF)
 

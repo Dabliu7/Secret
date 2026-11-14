@@ -27,7 +27,6 @@ jobs:
         include:
           - { hook: and64, raknet: "OFF", experimental: false }
           - { hook: and64, raknet: "ON",  experimental: true }
-          - { hook: dobby, raknet: "OFF", experimental: true }
     steps:
       - uses: actions/checkout@v4
 
@@ -56,7 +55,7 @@ jobs:
           -DMTASA_WITH_RAKNET=${{ matrix.raknet }}
 
       - name: Build
-        run: cmake --build --preset android-arm64 --parallel
+        run: cmake --build --preset android-arm64 --parallel -- -k 0
 
       - name: Verifica o ELF gerado
         env:

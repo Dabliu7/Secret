@@ -8,8 +8,6 @@
 
 #if defined(MTASA_HOOK_AND64)
 #include "And64InlineHook.hpp"
-#elif defined(MTASA_HOOK_DOBBY)
-#include "dobby.h"
 #endif
 
 namespace mtasa::hook {
@@ -22,11 +20,6 @@ bool Install(void* target, void* replacement, void** original) {
     void* trampoline = nullptr;
     A64HookFunction(target, replacement, &trampoline);
     if (!trampoline) return false;
-    if (original) *original = trampoline;
-    return true;
-#elif defined(MTASA_HOOK_DOBBY)
-    void* trampoline = nullptr;
-    if (DobbyHook(target, replacement, &trampoline) != 0) return false;
     if (original) *original = trampoline;
     return true;
 #else

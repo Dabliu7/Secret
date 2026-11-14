@@ -68,8 +68,8 @@ Decisões do build:
 - **Página de 16 KB** (`max-page-size=16384`) e nenhum `4096` fixo no código.
 - Dependências **fixadas por commit**; o RakNet é montado à mão porque o CMake do
   upstream é da era 2.6.
-- O CI tem uma matriz: `and64` é a combinação que bloqueia merge; `dobby` e
-  `raknet=ON` rodam como experimentais (`continue-on-error`) até serem validadas.
+- O CI tem uma matriz: `raknet=OFF` é a combinação que bloqueia merge;
+  `raknet=ON` roda como experimental (`continue-on-error`).
 
 ## 2. Injeção e loader
 
@@ -117,7 +117,7 @@ fronteira de função em vez de no meio dela.
 | | And64InlineHook | Dobby | ShadowHook (ByteDance) |
 |---|---|---|---|
 | Tamanho | 2 arquivos | médio | médio |
-| Manutenção | parada | irregular (HEAD às vezes quebra) | ativa, usada em produção |
+| Manutenção | parada | irregular | ativa, usada em produção |
 | Unhook / hooks encadeados | não | sim | sim |
 | Funções curtas, instalação com threads rodando | frágil | razoável | tratado |
 | Integração CMake pura | trivial | sim | via AAR/prefab (pede Gradle) ou fontes à mão |
@@ -125,7 +125,9 @@ fronteira de função em vez de no meio dela.
 Recomendação: **toda chamada passa por `mtasa::hook::Install`** (já no esqueleto).
 `And64InlineHook` basta para as Fases 1–2 (poucos hooks, instalados antes do jogo
 rodar). Ao passar de algumas dezenas de hooks, migrar o backend para
-**ShadowHook**. Complementos:
+**ShadowHook**. O Dobby ficou fora do build: o HEAD atual (`5dfc854`) não monta
+com o NDK r27c — `closure_bridge_arm64.asm` usa relocações `@PAGE` de Mach-O.
+Complementos:
 
 - **Hook de PLT/GOT** (bhook/xHook) para *imports* da `libGTASA.so` —
   `eglSwapBuffers`, `fopen`/`AAsset_*` (redirecionar arquivos de resources), `gl*`.
