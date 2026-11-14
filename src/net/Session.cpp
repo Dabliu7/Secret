@@ -46,7 +46,13 @@ bool Session::Connect(const char* host, uint16_t port) {
 bool Session::ConnectLoopback(uint16_t port) {
     Disconnect();
     loopback_server_ = CreateEchoServer();
-    if (!loopback_server_ || !loopback_server_->Start(port)) {
+    if (!loopback_server_) {
+        LOGE("rede: esta build foi compilada sem transporte (net=%s); "
+             "reconfigure com -DMTASA_WITH_RAKNET=ON", TransportName());
+        state_ = State::Failed;
+        return false;
+    }
+    if (!loopback_server_->Start(port)) {
         LOGE("rede: não foi possível subir o servidor de eco local na porta %u", port);
         loopback_server_.reset();
         state_ = State::Failed;

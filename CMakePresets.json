@@ -12,7 +12,8 @@
         "ANDROID_ABI": "arm64-v8a",
         "ANDROID_PLATFORM": "android-24",
         "ANDROID_STL": "c++_static",
-        "ANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES": "ON"
+        "ANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES": "ON",
+        "MTASA_WITH_RAKNET": "ON"
       }
     },
     {
@@ -22,7 +23,8 @@
       "binaryDir": "${sourceDir}/build/host",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "MTASA_BUILD_TESTS": "ON"
+        "MTASA_BUILD_TESTS": "ON",
+        "MTASA_WITH_RAKNET": "ON"
       }
     }
   ],
