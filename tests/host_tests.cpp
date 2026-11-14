@@ -8,6 +8,7 @@
 #include "net/Session.h"
 
 #include <chrono>
+#include <string>
 #include <thread>
 
 #define CHECK(cond)                                                      \
@@ -83,8 +84,26 @@ static void TestSessionLoopback() {
 }
 #endif
 
+static void TestParseEndpoint() {
+    using mtasa::net::Session;
+    char host[16];
+    uint16_t port = 0;
+    CHECK(Session::ParseEndpoint("192.168.0.10:22010", host, sizeof(host), &port));
+    CHECK(std::string(host) == "192.168.0.10" && port == 22010);
+    CHECK(Session::ParseEndpoint("10.0.0.2", host, sizeof(host), &port));
+    CHECK(std::string(host) == "10.0.0.2" && port == Session::kDefaultPort);
+    CHECK(!Session::ParseEndpoint("", host, sizeof(host), &port));
+    CHECK(!Session::ParseEndpoint(":22003", host, sizeof(host), &port));
+    CHECK(!Session::ParseEndpoint("host:", host, sizeof(host), &port));
+    CHECK(!Session::ParseEndpoint("host:0", host, sizeof(host), &port));
+    CHECK(!Session::ParseEndpoint("host:70000", host, sizeof(host), &port));
+    CHECK(!Session::ParseEndpoint("host:12ab", host, sizeof(host), &port));
+    CHECK(!Session::ParseEndpoint("nome-de-host-longo-demais:1", host, sizeof(host), &port));
+}
+
 int main() {
     TestGotHook();
+    TestParseEndpoint();
 #ifdef MTASA_WITH_RAKNET
     TestSessionLoopback();
 #endif

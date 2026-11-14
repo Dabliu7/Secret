@@ -55,6 +55,7 @@ void WaitForGameLibrary() {
 void Entry() {
     LOGI("MTA:SA Android %s (hook=%s, net=%s)", MTASA_VERSION, mtasa::hook::BackendName(),
          mtasa::net::TransportName());
+    LOGI("servidor de teste: %s", MTASA_TEST_SERVER[0] ? MTASA_TEST_SERVER : "(loopback)");
     if (!TryBootstrap()) WaitForGameLibrary();
 }
 

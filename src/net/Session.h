@@ -16,6 +16,9 @@ public:
 
     static constexpr uint16_t kDefaultPort = 22003;
 
+    // Separa "host:porta" (porta opcional -> kDefaultPort). Só IPv4/nome, sem IPv6.
+    static bool ParseEndpoint(const char* text, char* host, size_t host_size, uint16_t* port);
+
     // Sem transporte nesta build (RakNet desligado), Connect* retorna false.
     bool Connect(const char* host, uint16_t port);
     // Autoteste: sobe um servidor de eco neste processo e conecta em 127.0.0.1.

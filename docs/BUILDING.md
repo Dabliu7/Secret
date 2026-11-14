@@ -253,6 +253,54 @@ adb logcat -b crash -d | $ANDROID_NDK_HOME/ndk-stack -sym build/android-arm64
 
 ---
 
+## Teste de rede
+
+O botão **MTA** no topo da tela abre o painel; o botão de rede tem dois modos.
+
+### Autoteste em loopback (padrão)
+
+Sem configurar nada, "Testar rede" sobe um servidor de eco dentro do jogo e
+conecta em `127.0.0.1:22003`. O painel deve mostrar `conectado a
+127.0.0.1:22003, N ms`. Validado no Galaxy M53 5G (Android 16).
+
+### Servidor de eco no PC
+
+Compile e rode o servidor no PC (porta 22003/UDP):
+
+```sh
+cmake --preset host && cmake --build --preset host --target mtasa_echo_server
+build/host/mtasa_echo_server
+```
+
+Recompile o payload apontando para o IP do PC na rede local e reinstale:
+
+```sh
+cmake --preset android-arm64 -DMTASA_TEST_SERVER=192.168.0.10:22003
+cmake --build --preset android-arm64
+```
+
+O botão passa a se chamar "Conectar". Para voltar ao loopback, reconfigure com
+`-DMTASA_TEST_SERVER=`.
+
+**WSL2:** por padrão o WSL2 fica atrás de NAT e não recebe UDP vindo da rede
+local. No Windows 11 22H2 ou mais novo, ative a rede espelhada: crie
+`%UserProfile%\.wslconfig` com
+
+```ini
+[wsl2]
+networkingMode=mirrored
+```
+
+rode `wsl --shutdown`, abra o WSL de novo e libere a entrada no firewall do
+Hyper-V (PowerShell como administrador):
+
+```powershell
+Set-NetFirewallHyperVVMSetting -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -DefaultInboundAction Allow
+```
+
+Use então o IP do Windows (`ipconfig`) em `MTASA_TEST_SERVER`. Este caminho com
+WSL2 ainda não foi testado neste projeto.
+
 ## Ciclo de desenvolvimento
 
 Depois da primeira instalação, cada alteração é:

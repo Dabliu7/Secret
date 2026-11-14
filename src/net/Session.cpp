@@ -22,6 +22,29 @@ constexpr size_t kPingSize = 1 + 4 + 8;
 
 }  // namespace
 
+bool Session::ParseEndpoint(const char* text, char* host, size_t host_size, uint16_t* port) {
+    if (!text || !*text || host_size == 0) return false;
+    const char* colon = std::strrchr(text, ':');
+    const size_t host_len = colon ? static_cast<size_t>(colon - text) : std::strlen(text);
+    if (host_len == 0 || host_len >= host_size) return false;
+    std::memcpy(host, text, host_len);
+    host[host_len] = '\0';
+    *port = kDefaultPort;
+    if (colon) {
+        unsigned value = 0;
+        const char* p = colon + 1;
+        if (!*p) return false;
+        for (; *p; ++p) {
+            if (*p < '0' || *p > '9') return false;
+            value = value * 10 + static_cast<unsigned>(*p - '0');
+            if (value > 65535) return false;
+        }
+        if (value == 0) return false;
+        *port = static_cast<uint16_t>(value);
+    }
+    return true;
+}
+
 bool Session::Connect(const char* host, uint16_t port) {
     Disconnect();
     transport_ = CreateTransport();

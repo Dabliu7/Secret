@@ -99,7 +99,7 @@ void OverlayRenderer::DrawPanel(const Layout& layout) {
     const Box& n = layout.connect_button;
     game_draw_->Rect(n.x, n.y, n.w, n.h, active ? 0x8A2A2AFF : 0x2A6A2AFF);
     game_draw_->Text(n.x + n.w * 0.10f, n.y + n.h * 0.22f, 0.7f, 0xFFFFFFFF,
-                     active ? "Desconectar" : "Testar rede");
+                     active ? "Desconectar" : (MTASA_TEST_SERVER[0] ? "Conectar" : "Testar rede"));
 
     const Box& c = layout.close_button;
     game_draw_->Rect(c.x, c.y, c.w, c.h, 0xF5A623FF);
@@ -144,9 +144,14 @@ bool OverlayRenderer::OnTouch(int action, int pointer, int x, int y) {
             panel_open_ = false;
             LOGI("painel MTA fechado");
         } else if (pressed == Target::ConnectButton && session_) {
-            // Fase 3: autoteste em loopback (cliente e servidor de eco no aparelho).
+            // Fase 3: servidor de teste definido na compilação, ou autoteste em
+            // loopback (cliente e servidor de eco no próprio aparelho).
+            char host[64];
+            uint16_t port = 0;
             if (session_->active()) {
                 session_->Disconnect();
+            } else if (net::Session::ParseEndpoint(MTASA_TEST_SERVER, host, sizeof(host), &port)) {
+                session_->Connect(host, port);
             } else {
                 session_->ConnectLoopback();
             }

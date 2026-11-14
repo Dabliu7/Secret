@@ -8,6 +8,9 @@ project(mtasa_android VERSION 0.1.0 LANGUAGES C CXX)
 set(MTASA_HOOK_BACKEND "auto" CACHE STRING "Backend de hook: auto|and64|none")
 set_property(CACHE MTASA_HOOK_BACKEND PROPERTY STRINGS auto and64 none)
 option(MTASA_WITH_RAKNET "Compila o transporte de rede RakNet" ON)
+# Servidor que o botão de rede do painel usa, no formato host:porta. Vazio = autoteste
+# em loopback dentro do aparelho. Provisório: some quando houver entrada de texto.
+set(MTASA_TEST_SERVER "" CACHE STRING "host:porta do servidor de teste (vazio = loopback)")
 option(MTASA_BUILD_TESTS "Compila os testes de host" OFF)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -59,7 +62,8 @@ target_compile_options(mtasa PRIVATE
   -ffunction-sections -fdata-sections)
 target_compile_definitions(mtasa PRIVATE
   MTASA_VERSION="${PROJECT_VERSION}"
-  MTASA_HOOK_BACKEND_NAME="${MTASA_HOOK_BACKEND}")
+  MTASA_HOOK_BACKEND_NAME="${MTASA_HOOK_BACKEND}"
+  MTASA_TEST_SERVER="${MTASA_TEST_SERVER}")
 
 target_link_libraries(mtasa PRIVATE mtasa::hook_backend ${CMAKE_DL_LIBS})
 
@@ -112,4 +116,4 @@ if(MTASA_WITH_RAKNET AND NOT ANDROID)
   target_link_libraries(mtasa_echo_server PRIVATE mtasa::raknet Threads::Threads)
 endif()
 
-message(STATUS "mtasa: hook backend = ${MTASA_HOOK_BACKEND}, raknet = ${MTASA_WITH_RAKNET}")
+message(STATUS "mtasa: hook backend = ${MTASA_HOOK_BACKEND}, raknet = ${MTASA_WITH_RAKNET}, servidor de teste = '${MTASA_TEST_SERVER}'")
