@@ -19,15 +19,21 @@
 
 namespace {
 
-constexpr char kGameLib[] = "libGTASA.so";
+// Nome da biblioteca do motor: builds novas (casca Flutter) usam libGame.so,
+// as clássicas usam libGTASA.so.
+constexpr const char* kGameLibs[] = {"/libGame.so", "/libGTASA.so"};
 std::atomic<bool> g_bootstrapped{false};
 
 bool TryBootstrap() {
-    const auto gtasa = mtasa::hook::FindModule(kGameLib);
+    mtasa::hook::ModuleInfo gtasa;
+    for (const char* name : kGameLibs) {
+        gtasa = mtasa::hook::FindModule(name);
+        if (gtasa) break;
+    }
     if (!gtasa) return false;
     if (g_bootstrapped.exchange(true)) return true;
 
-    LOGI("%s em %p (%s)", kGameLib, reinterpret_cast<void*>(gtasa.base), gtasa.path);
+    LOGI("motor do jogo em %p (%s)", reinterpret_cast<void*>(gtasa.base), gtasa.path);
     if (!mtasa::game::InstallHooks(gtasa)) {
         LOGE("bootstrap abortado: o jogo segue sem modificações");
     }
@@ -42,7 +48,7 @@ void WaitForGameLibrary() {
             if (TryBootstrap()) return;
             std::this_thread::sleep_for(10ms);
         }
-        LOGE("%s não foi carregada; desistindo", kGameLib);
+        LOGE("biblioteca do jogo não foi carregada; desistindo");
     }).detach();
 }
 

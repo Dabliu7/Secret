@@ -28,22 +28,30 @@ else
 fi
 
 # Qual APK carrega as bibliotecas nativas arm64?
-has_lib() { unzip -l "$1" "$ABI_DIR/libGTASA.so" >/dev/null 2>&1; }
+has_lib() { unzip -l "$1" "$ABI_DIR/libGame.so" >/dev/null 2>&1 || unzip -l "$1" "$ABI_DIR/libGTASA.so" >/dev/null 2>&1; }
 LIB_APK=""
 for apk in "$BASE" "${SPLITS[@]}"; do
   if has_lib "$apk"; then LIB_APK="$apk"; break; fi
 done
-[ -n "$LIB_APK" ] || { echo "ERRO: nenhum APK contém $ABI_DIR/libGTASA.so (build só armv7?)" >&2; exit 1; }
+[ -n "$LIB_APK" ] || { echo "ERRO: nenhum APK contém $ABI_DIR/libGame.so ou libGTASA.so (build só armv7?)" >&2; exit 1; }
 echo "bibliotecas nativas em: $LIB_APK"
 
 # --- 1. base.apk: patch de smali (-r: não decodifica recursos, rebuild mais robusto)
 apktool d -f -r -o "$WORK/base" "$BASE"
 
-SMALI="$(grep -rlE 'const-string [vp][0-9]+, "GTASA"' "$WORK/base"/smali* | head -n1 || true)"
-[ -n "$SMALI" ] || { echo "ERRO: loadLibrary(\"GTASA\") não encontrado no smali" >&2; exit 1; }
-# Carrega "mtasa" logo depois de "GTASA", reutilizando o mesmo registrador.
+# Acha o smali que faz System.loadLibrary("Game") (ou "GTASA" nas builds antigas)
+# e carrega "mtasa" logo depois, reutilizando o mesmo registrador.
+SMALI=""
+while IFS= read -r f; do
+  if grep -q 'Ljava/lang/System;->loadLibrary' "$f"; then SMALI="$f"; break; fi
+done < <(grep -rlE 'const-string [vp][0-9]+, "(Game|GTASA)"' "$WORK/base"/smali* || true)
+[ -n "$SMALI" ] || {
+  echo "ERRO: loadLibrary(\"Game\"/\"GTASA\") não encontrado. Chamadas existentes:" >&2
+  grep -rn -B3 'Ljava/lang/System;->loadLibrary' "$WORK/base"/smali* | grep -E 'const-string|loadLibrary' | head -40 >&2
+  exit 1; }
 awk '
-  /const-string [vp][0-9]+, "GTASA"/ { reg = $2; sub(/,$/, "", reg) }
+  /const-string [vp][0-9]+, "(Game|GTASA)"$/ { reg = $2; sub(/,$/, "", reg) }
+  /^\.end method/ { reg = "" }
   { print }
   reg != "" && /Ljava\/lang\/System;->loadLibrary\(Ljava\/lang\/String;\)V/ {
     print "    const-string " reg ", \"mtasa\""
