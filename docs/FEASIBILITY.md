@@ -292,7 +292,7 @@ LuaJIT é opcional e posterior. Custos em Android arm64:
 - **Ponteiros com tag**: desde o Android 11 o heap devolve ponteiros com tag no
   byte alto (e MTE em hardware novo). O LuaJIT arm64 assume 47 bits para
   `lightuserdata` e aborta. Mitigação: `allowNativeHeapPointerTagging="false"`
-  no manifesto (o `patch_apk.sh` já aplica) e/ou alocador próprio via `mmap` em
+  no manifesto (ainda não aplicado pelo `patch_apk.sh`) e/ou alocador próprio via `mmap` em
   faixa baixa.
 - Bytecode incompatível com `luac` 5.1; diferenças sutis de semântica que quebram
   scripts existentes.

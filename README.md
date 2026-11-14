@@ -32,15 +32,15 @@ cmake --preset host && cmake --build --preset host && ctest --preset host
 
 ## Testar em um aparelho
 
-Requer um APK do jogo que você possui, com `lib/arm64-v8a/libGTASA.so`.
+Requer o jogo que você possui, em versão arm64 (APK único ou split APKs).
 
 ```sh
 tools/dump_symbols.sh caminho/libGTASA.so          # Fase 0: confere os símbolos
-tools/patch_apk.sh gtasa.apk build/android-arm64/libmtasa.so
-adb install -r work/gtasa-mtasa.apk && adb logcat -s MTASA
+tools/patch_apk.sh work/apks build/android-arm64/libmtasa.so
+adb install-multiple work/out/*.apk && adb logcat -s MTASA
 ```
 
-Não redistribua o APK gerado: ele contém o jogo da Rockstar.
+Não redistribua os APKs gerados: eles contêm o jogo da Rockstar.
 
 ## Licença
 

@@ -96,30 +96,37 @@ Artifacts** baixe `libmtasa-arm64-v8a-and64-raknetOFF` e pule para a Parte 3.
 Você precisa de uma cópia do GTA:SA para Android **que você comprou**, em uma
 versão que tenha biblioteca **arm64**.
 
-### 3.1 Extrair o APK do seu aparelho
+### 3.1 Extrair os APKs do seu aparelho
 
 Ative *Opções do desenvolvedor → Depuração USB*, conecte o cabo e:
 
 ```sh
 adb devices                                   # o aparelho deve aparecer como "device"
-adb shell pm path com.rockstargames.gtasa
+mkdir -p work/apks
+for p in $(adb shell pm path com.rockstargames.gtasa | tr -d '\r' | sed 's/^package://'); do
+  adb pull "$p" work/apks/
+done
+ls work/apks
 ```
 
-- **Uma linha** (`.../base.apk`): `adb pull <caminho> gtasa.apk`.
-- **Várias linhas** (`base.apk` + `split_config.arm64_v8a.apk` ...): a instalação
-  é em *split APKs* e as bibliotecas ficam no split. O `patch_apk.sh` não trata
-  esse caso; una os splits em um APK único antes (por exemplo com o APKEditor,
-  comando `merge`) e use o resultado como `gtasa.apk`.
+Instalações da Play Store vêm em *split APKs*: `base.apk` (código Java),
+`split_config.arm64_v8a.apk` (bibliotecas nativas), `split_data_main.apk` (dados
+do jogo) e splits de idioma/densidade. Em instalações antigas há só um `base.apk`.
+O `patch_apk.sh` trata os dois casos.
 
 ### 3.2 Extrair e conferir a `libGTASA.so`
 
 ```sh
-mkdir -p work
-unzip -o gtasa.apk 'lib/arm64-v8a/libGTASA.so' -d work/
+# split APKs:
+unzip -o work/apks/split_config.arm64_v8a.apk 'lib/arm64-v8a/*' -d work/
+# APK único:
+# unzip -o work/apks/base.apk 'lib/arm64-v8a/*' -d work/
+
+ls work/lib/arm64-v8a/                         # anote os nomes das bibliotecas
 tools/dump_symbols.sh work/lib/arm64-v8a/libGTASA.so
 ```
 
-Se o `unzip` não achar o arquivo, o APK é só armv7 e **não serve** — é preciso
+Se não existir `split_config.arm64_v8a.apk` nem `lib/arm64-v8a` no base, a instalação é só armv7 e **não serve** — é preciso
 uma versão mais nova do jogo.
 
 Saída esperada:
@@ -156,36 +163,40 @@ Anote o conteúdo de `work/symbols/build_id.txt`: offsets só valem para essa bu
 ## Parte 4 — Injetar no APK e instalar
 
 ```sh
-tools/patch_apk.sh gtasa.apk build/android-arm64/libmtasa.so
+tools/patch_apk.sh work/apks build/android-arm64/libmtasa.so
 ```
 
-O script descompacta o APK, copia a `libmtasa.so`, adiciona
-`System.loadLibrary("mtasa")` logo após o carregamento da `libGTASA.so`,
-reempacota e assina com uma chave de debug. Saída: `work/gtasa-mtasa.apk`.
+O script adiciona `System.loadLibrary("mtasa")` no `base.apk` logo após o
+carregamento da `libGTASA.so`, coloca a `libmtasa.so` no APK que contém as
+bibliotecas nativas e assina **todos** os APKs com a mesma chave de debug (o
+Android exige a mesma assinatura em todos os splits). Saída: `work/out/`.
 
 ### Instalar
 
 A assinatura mudou, então o Android recusa atualizar por cima do original. É
-preciso desinstalar antes — **isso apaga saves e pode apagar os dados do jogo**.
+preciso desinstalar antes — **isso apaga os saves**.
 
 ```sh
-# 1. backup dos dados (OBB) e dos saves
-adb pull /sdcard/Android/obb/com.rockstargames.gtasa work/obb-backup
+# 1. backup dos saves (e do OBB, se a sua instalação usar)
 adb pull /sdcard/Android/data/com.rockstargames.gtasa work/data-backup
+adb pull /sdcard/Android/obb/com.rockstargames.gtasa work/obb-backup    # pode não existir
 
-# 2. trocar o APK
+# 2. trocar os APKs
 adb uninstall com.rockstargames.gtasa
-adb install work/gtasa-mtasa.apk
+adb install-multiple work/out/*.apk        # APK único: adb install work/out/base.apk
 
-# 3. devolver os dados
-adb push work/obb-backup /sdcard/Android/obb/com.rockstargames.gtasa
+# 3. devolver os dados, se havia
+adb push work/data-backup /sdcard/Android/data/com.rockstargames.gtasa
 ```
+
+Com `split_data_main.apk` os dados do jogo já vão dentro da instalação e não há
+OBB para restaurar.
 
 Em Android 11+ o acesso a `Android/obb` e `Android/data` via `adb` pode ser
 negado; nesse caso copie as pastas com um gerenciador de arquivos que tenha essa
 permissão, ou deixe o jogo baixar os dados de novo.
 
-Não redistribua `work/gtasa-mtasa.apk`: ele contém o jogo da Rockstar.
+Não redistribua os APKs de `work/out/`: eles contêm o jogo da Rockstar.
 
 ---
 
@@ -215,7 +226,7 @@ render ainda não existe.
 
 | Sintoma | Causa provável | O que fazer |
 |---|---|---|
-| Nenhuma linha `MTASA` | A lib não foi carregada | Confira `unzip -l work/gtasa-mtasa.apk \| grep libmtasa` e a mensagem "smali patcheado" do script |
+| Nenhuma linha `MTASA` | A lib não foi carregada | Confira `unzip -l work/out/split_config.arm64_v8a.apk \| grep libmtasa` e a mensagem "smali patcheado" do script |
 | `sym ... NÃO encontrado` | Símbolo diferente nessa build | Parte 3.3 |
 | `libGTASA.so não foi carregada` | Nome da lib diferente | Ajuste `kGameLib` em `src/core/main.cpp` |
 | `hooks instalados: FALHA` | O backend não conseguiu patchear | Veja as linhas `A64_HOOK` no `adb logcat` completo |
@@ -239,8 +250,8 @@ Depois da primeira instalação, cada alteração é:
 
 ```sh
 cmake --build --preset android-arm64
-tools/patch_apk.sh gtasa.apk build/android-arm64/libmtasa.so
-adb install -r work/gtasa-mtasa.apk      # -r funciona: a chave de debug é a mesma
+tools/patch_apk.sh work/apks build/android-arm64/libmtasa.so
+adb install-multiple -r work/out/*.apk   # -r funciona: a chave de debug é a mesma
 adb logcat -s MTASA
 ```
 
