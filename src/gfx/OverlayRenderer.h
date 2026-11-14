@@ -1,6 +1,10 @@
 #pragma once
 #include <cstdint>
 
+namespace mtasa::game {
+class GameDraw;
+}
+
 namespace mtasa::gfx {
 
 // Vértice 2D neutro: é o formato que CEGUI/dx* produzem. Cada backend converte
@@ -29,6 +33,9 @@ class OverlayRenderer {
 public:
     static OverlayRenderer& Get();
 
+    // Liga o desenho pelas rotinas do jogo (retângulos e texto).
+    void SetGameDraw(const game::GameDraw* draw) { game_draw_ = draw; }
+
     void SetBackend(IRenderBackend* backend) { backend_ = backend; }
 
     // Chamado no thread de render do jogo, dentro do hook de Render2dStuff.
@@ -37,6 +44,9 @@ public:
     bool OnTouch(int action, int pointer, int x, int y);
 
 private:
+    void DrawStatusBanner();
+
+    const game::GameDraw* game_draw_ = nullptr;
     IRenderBackend* backend_ = nullptr;
     uint64_t frame_ = 0;
     bool capture_input_ = false;

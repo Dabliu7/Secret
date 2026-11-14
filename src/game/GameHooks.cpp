@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <unistd.h>
 
+#include "game/GameDraw.h"
 #include "game/Symbols.h"
 #include "gfx/OverlayRenderer.h"
 #include "mtasa/Log.h"
@@ -13,6 +14,7 @@ namespace mtasa::game {
 namespace {
 
 Symbols g_syms;
+GameDraw g_draw;
 std::atomic<bool> g_installed{false};
 
 // --- CGame::Process --------------------------------------------------------
@@ -162,6 +164,7 @@ bool InstallHooks(const hook::ModuleInfo& gtasa) {
     ok &= hook::Install(g_syms.AND_TouchEvent, hook_AND_TouchEvent, &orig_AND_TouchEvent);
     LOGI("hooks instalados: %s (backend %s)", ok ? "ok" : "FALHA", hook::BackendName());
     InstallAudioWorkarounds(gtasa);
+    if (ok && g_draw.Init(gtasa)) gfx::OverlayRenderer::Get().SetGameDraw(&g_draw);
     return ok;
 }
 

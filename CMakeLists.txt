@@ -45,6 +45,7 @@ add_library(mtasa SHARED
   src/hook/ModuleInfo.cpp
   src/game/Symbols.cpp
   src/game/GameHooks.cpp
+  src/game/GameDraw.cpp
   src/gfx/OverlayRenderer.cpp
   src/lua/LuaAllocator.cpp
   src/net/NetTransport.cpp
