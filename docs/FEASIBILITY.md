@@ -107,9 +107,14 @@ pacotes ausentes para armazenamento externo.
 **Primeiro teste em aparelho (Galaxy M53 5G, Android 16, sem root):** com o
 downloader patcheado a `libmtasa.so` carrega, os três símbolos resolvem, os
 hooks instalam e `CGame::Process` é interceptado no `GameThread`. Sem o pack
-`data_streams` o jogo cai logo depois em `CAEStreamThread::Service` →
-`ZIPFile::Find` (ponteiro nulo); o payload agora neutraliza esse serviço quando
-o pack está ausente.
+`data_streams` o jogo cai em `CAEStreamThread::Service` → `ZIPFile::Find`
+(ponteiro nulo) e, contornada a queda, trava na cutscene de abertura: há laços
+bloqueantes (`CAECutsceneTrackManager::PreloadCutsceneTrack` e outros em
+`CAudioEngine`) esperando códigos de estado de `GetTrackPlayTime`. O payload
+resolve isso com um **dispositivo de streaming nulo** (hooks de GOT em
+`CAEStreamThread::PlayTrack/StopTrack/GetTrackPlayTime` e
+`CAEAudioHardware::StartTrackPlayback`) que devolve os códigos esperados
+(-2 pronta, -6 terminada), além de proteger `ZIPFile::Find` contra `this` nulo.
 
 Em todos os casos sem root o APK final é reassinado; **distribui-se o patcher e a
 `libmtasa.so`, nunca o APK ou assets da Rockstar**.

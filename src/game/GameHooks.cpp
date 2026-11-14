@@ -1,6 +1,8 @@
 #include "game/GameHooks.h"
 
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <unistd.h>
 
 #include "game/Symbols.h"
@@ -43,27 +45,105 @@ void hook_AND_TouchEvent(int action, int pointer, int x, int y) {
     orig_AND_TouchEvent(action, pointer, x, y);
 }
 
-// --- Modo sem streaming de áudio -------------------------------------------
+// --- ZIPFile::Find com `this` nulo -------------------------------------------
+// Quando um asset pack não existe, ZIP_FileCreate devolve nullptr e o jogo chama
+// ZIPFile::Find nesse ponteiro (queda vista em CAEMP3TrackLoader::GetDataStream).
+// O retorno é {entrada, encontrado} em x0/x1; "não encontrado" já é um caminho
+// tratado pelos chamadores.
+struct ZipFindResult {
+    uint64_t entry;
+    uint64_t found;
+};
+ZipFindResult (*orig_ZIPFile_Find)(void*, void*) = nullptr;
+ZipFindResult hook_ZIPFile_Find(void* self, void* name) {
+    if (!self) return {0, 0};
+    return orig_ZIPFile_Find(self, name);
+}
+
+// --- Streaming de áudio nulo -------------------------------------------------
 // Em APKs reassinados a Play não entrega o pack `data_streams` (rádio, música,
-// áudio de missão). Sem ele, CAEStreamThread::Service chama ZIPFile::Find em
-// um ponteiro nulo e o jogo cai no primeiro frame. Com o pack ausente,
-// trocamos o serviço de streaming por um no-op: o jogo roda sem rádio/música.
+// trilhas de cutscene e de missão). Os gerenciadores de trilha do jogo são
+// máquinas de estado guiadas pelo código devolvido por GetTrackPlayTime, e há
+// laços BLOQUEANTES esperando esses códigos (ex.: CAECutsceneTrackManager::
+// PreloadCutsceneTrack espera -2). Em vez de desligar o serviço, emulamos um
+// dispositivo que "toca" toda trilha instantaneamente:
+//   PlayTrack          -> -2 (pronta)
+//   StartTrackPlayback -> -6 (terminou)
+//   StopTrack          -> -6
+// Tudo via GOT: várias destas funções têm 2-3 instruções, pequenas demais para
+// inline hook. Offsets de CAEStreamThread conferidos na build 2.11.311.
 constexpr char kStreamsPackDir[] =
     "/storage/emulated/0/Android/data/com.rockstargames.gtasa/files/mtasa_packs/data_streams";
+constexpr int64_t kTrackReady = -2;
+constexpr int64_t kTrackEnded = -6;
+constexpr size_t kStreamThreadActiveTrackId = 0x50;
+constexpr size_t kStreamThreadPlayingTrackId = 0x54;
 
-void (*orig_CAEStreamThread_Service)(void*) = nullptr;
-void hook_CAEStreamThread_Service(void* /*self*/) {}
+std::atomic<int64_t> g_track_state{kTrackEnded};
+
+void null_StreamThread_Service(void* /*self*/) {}
+
+void null_StreamThread_PlayTrack(void* self, uint32_t track_id, int /*next_track_id*/,
+                                 uint32_t /*start_ms*/, char /*type*/, bool, bool) {
+    auto* fields = static_cast<uint8_t*>(self);
+    *reinterpret_cast<uint32_t*>(fields + kStreamThreadActiveTrackId) = track_id;
+    *reinterpret_cast<uint32_t*>(fields + kStreamThreadPlayingTrackId) = track_id;
+    g_track_state.store(kTrackReady, std::memory_order_relaxed);
+}
+
+void null_StreamThread_StopTrack(void* /*self*/) {
+    g_track_state.store(kTrackEnded, std::memory_order_relaxed);
+}
+
+int64_t null_StreamThread_GetTrackPlayTime(void* /*self*/) {
+    return g_track_state.load(std::memory_order_relaxed);
+}
+
+void null_AudioHardware_StartTrackPlayback(void* /*self*/) {
+    g_track_state.store(kTrackEnded, std::memory_order_relaxed);
+}
+
+// Sem trilhas não há por que ligar o rádio (e StopRadio tem laço bloqueante).
+void null_RadioTrackManager_StartRadio4(void*, signed char, signed char, float, unsigned char) {}
+void null_RadioTrackManager_StartRadio1(void*, void*) {}
 
 void InstallAudioWorkarounds(const hook::ModuleInfo& gtasa) {
+    const int find = hook::HookGot(
+        gtasa, "_ZN7ZIPFile4FindENSt6__ndk112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE",
+        hook_ZIPFile_Find, &orig_ZIPFile_Find);
+    LOGI("ZIPFile::Find protegido contra pack ausente: %d entrada(s)", find);
+
     if (access(kStreamsPackDir, F_OK) == 0) {
         LOGI("pack data_streams presente: streaming de áudio mantido");
         return;
     }
-    void* service = Resolve(gtasa, "_ZN15CAEStreamThread7ServiceEv");
-    const bool ok = service && hook::Install(service, hook_CAEStreamThread_Service,
-                                             &orig_CAEStreamThread_Service);
-    LOGW("pack data_streams ausente: streaming de áudio %s",
-         ok ? "desativado (sem rádio/música)" : "NÃO pôde ser desativado; o jogo deve cair");
+
+    struct Stub {
+        const char* symbol;
+        void* replacement;
+    };
+    const Stub stubs[] = {
+        {"_ZN15CAEStreamThread7ServiceEv", reinterpret_cast<void*>(null_StreamThread_Service)},
+        {"_ZN15CAEStreamThread9PlayTrackEjijcbb", reinterpret_cast<void*>(null_StreamThread_PlayTrack)},
+        {"_ZN15CAEStreamThread9StopTrackEv", reinterpret_cast<void*>(null_StreamThread_StopTrack)},
+        {"_ZN15CAEStreamThread16GetTrackPlayTimeEv",
+         reinterpret_cast<void*>(null_StreamThread_GetTrackPlayTime)},
+        {"_ZN16CAEAudioHardware18StartTrackPlaybackEv",
+         reinterpret_cast<void*>(null_AudioHardware_StartTrackPlayback)},
+        {"_ZN20CAERadioTrackManager10StartRadioEaafh",
+         reinterpret_cast<void*>(null_RadioTrackManager_StartRadio4)},
+        {"_ZN20CAERadioTrackManager10StartRadioEP21tVehicleAudioSettings",
+         reinterpret_cast<void*>(null_RadioTrackManager_StartRadio1)},
+    };
+    int missing = 0;
+    for (const auto& stub : stubs) {
+        if (hook::HookGot(gtasa, stub.symbol, stub.replacement, nullptr) == 0) {
+            LOGE("streaming nulo: %s sem entrada na GOT", stub.symbol);
+            ++missing;
+        }
+    }
+    LOGW("pack data_streams ausente: streaming de áudio nulo %s (sem rádio/música)",
+         missing == 0 ? "ativo" : "INCOMPLETO; o jogo pode travar ou cair");
 }
 
 }  // namespace

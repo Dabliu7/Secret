@@ -3,6 +3,7 @@
 #include <cstdlib>
 
 #include "lua/LuaAllocator.h"
+#include "mtasa/Hook.h"
 #include "net/NetTransport.h"
 
 #define CHECK(cond)                                                      \
@@ -29,7 +30,27 @@ static void TestCappedAllocator() {
     CHECK(CappedAllocator::Alloc(&a, p, 16, 0) == nullptr && a.used() == 0);
 }
 
+extern "C" int got_victim_target(int);
+extern "C" int got_victim_caller(int);
+
+static int (*orig_target)(int) = nullptr;
+static int FakeTarget(int x) { return orig_target(x) + 100; }
+
+static void TestGotHook() {
+    CHECK(got_victim_caller(1) == 20);
+    const auto module = mtasa::hook::FindModule("libgot_victim.so");
+    CHECK(module);
+    CHECK(mtasa::hook::HookGot(module, "simbolo_inexistente", FakeTarget, &orig_target) == 0);
+    CHECK(mtasa::hook::HookGot(module, "got_victim_target", FakeTarget, &orig_target) >= 1);
+    CHECK(orig_target != nullptr);
+    CHECK(got_victim_caller(1) == 1020);  // caller -> PLT -> FakeTarget -> original
+    // Repetir não empilha o hook.
+    CHECK(mtasa::hook::HookGot(module, "got_victim_target", FakeTarget, &orig_target) == 0);
+    CHECK(got_victim_caller(1) == 1020);
+}
+
 int main() {
+    TestGotHook();
     TestCappedAllocator();
     CHECK(mtasa::net::TransportName() != nullptr);
     std::puts("ok");

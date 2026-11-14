@@ -23,6 +23,18 @@ bool Install(void* target, Fn* replacement, Fn** original) {
     return Install(target, reinterpret_cast<void*>(replacement), reinterpret_cast<void**>(original));
 }
 
+// Redireciona, na GOT de `module`, as chamadas via PLT ao símbolo `symbol`.
+// Não toca no código da função: serve para funções pequenas demais para inline
+// hook e para imports. Só afeta chamadas feitas de dentro de `module`.
+// Retorna quantas entradas foram trocadas; `original` recebe o alvo anterior.
+int HookGot(const ModuleInfo& module, const char* symbol, void* replacement, void** original);
+
+template <typename Fn>
+int HookGot(const ModuleInfo& module, const char* symbol, Fn* replacement, Fn** original) {
+    return HookGot(module, symbol, reinterpret_cast<void*>(replacement),
+                   reinterpret_cast<void**>(original));
+}
+
 // Escreve bytes em memória de código (mprotect + flush de icache).
 bool Patch(void* address, const void* data, size_t size);
 

@@ -41,6 +41,7 @@ add_library(mtasa SHARED
   src/core/main.cpp
   src/core/Log.cpp
   src/hook/Hook.cpp
+  src/hook/GotHook.cpp
   src/hook/ModuleInfo.cpp
   src/game/Symbols.cpp
   src/game/GameHooks.cpp
@@ -83,8 +84,13 @@ endif()
 # ---------------------------------------------------------------------------
 if(MTASA_BUILD_TESTS AND NOT ANDROID)
   enable_testing()
-  add_executable(mtasa_host_tests tests/host_tests.cpp src/lua/LuaAllocator.cpp src/net/NetTransport.cpp src/core/Log.cpp)
+  add_library(got_victim SHARED tests/got_victim.c)
+  set_target_properties(got_victim PROPERTIES C_VISIBILITY_PRESET default)
+  target_compile_options(got_victim PRIVATE -O0 -fsemantic-interposition)
+  add_executable(mtasa_host_tests tests/host_tests.cpp src/lua/LuaAllocator.cpp src/net/NetTransport.cpp
+    src/core/Log.cpp src/hook/GotHook.cpp src/hook/ModuleInfo.cpp)
   target_include_directories(mtasa_host_tests PRIVATE include src)
+  target_link_libraries(mtasa_host_tests PRIVATE got_victim ${CMAKE_DL_LIBS})
   add_test(NAME host_tests COMMAND mtasa_host_tests)
 endif()
 
