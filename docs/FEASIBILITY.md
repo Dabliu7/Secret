@@ -68,8 +68,7 @@ Decisões do build:
 - **Página de 16 KB** (`max-page-size=16384`) e nenhum `4096` fixo no código.
 - Dependências **fixadas por commit**; o RakNet é montado à mão porque o CMake do
   upstream é da era 2.6.
-- O CI tem uma matriz: `raknet=OFF` é a combinação que bloqueia merge;
-  `raknet=ON` roda como experimental (`continue-on-error`).
+- O CI compila as duas combinações (`raknet=OFF` e `ON`) e roda os testes de host.
 
 ## 2. Injeção e loader
 
@@ -254,8 +253,8 @@ são decodificados pelo `netc`; só scripts em texto ou bytecode puro funcionam.
 ### 4.2 Compilar para arm64
 
 O RakNet 4.081 aberto compila com clang atual excluindo `ReplicaManager3.cpp`
-(testado em host x86-64; **não testado no NDK** — por isso o job é experimental).
-SLikeNet é o fork mantido e a alternativa se o NDK reclamar.
+e com um `asm/io.h` vazio no Android (compila no CI com NDK r27c; **não testado
+em execução**). SLikeNet é o fork mantido e a alternativa se surgirem problemas.
 
 Compatibilidade binária da camada de pacotes entre x86 Windows e arm64 Android —
 todos estes são bugs silenciosos clássicos:

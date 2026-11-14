@@ -19,14 +19,11 @@ jobs:
   android-arm64:
     name: libmtasa.so (arm64-v8a, hook=${{ matrix.hook }}, raknet=${{ matrix.raknet }})
     runs-on: ubuntu-latest
-    # Combinações ainda não validadas em dispositivo não bloqueiam o merge.
-    continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { hook: and64, raknet: "OFF", experimental: false }
-          - { hook: and64, raknet: "ON",  experimental: true }
+        hook: [and64]
+        raknet: ["OFF", "ON"]
     steps:
       - uses: actions/checkout@v4
 
